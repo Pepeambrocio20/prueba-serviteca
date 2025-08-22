@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section id="inventario">
+  <h2>Inventario</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th><th>SKU</th><th>Marca</th><th>Modelo</th><th>Medida</th>
+        <th>Cantidad</th><th>Umbral</th><th>Alerta</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for f in filas %}
+      <tr>
+        <td>{{ f.llanta_id }}</td>
+        <td>{{ f.sku }}</td>
+        <td>{{ f.marca }}</td>
+        <td>{{ f.modelo }}</td>
+        <td>{{ f.medida }}</td>
+        <td>{{ f.cantidad }}</td>
+        <td>{{ f.umbral_minimo }}</td>
+        <td>{% if f.alerta %}<span class="badge">⚠️ Bajo stock</span>{% else %}<span class="muted">OK</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+
+  <h3>Reporte: Bajo stock (≤ umbral)</h3>
+  {% if bajo %}
+    <ul>
+      {% for f in bajo %}
+        <li>[{{ f.llanta_id }}] {{ f.sku }} — {{ f.cantidad }} ≤ {{ f.umbral_minimo }}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="muted">Sin alertas</p>
+  {% endif %}
+</section>
+
+<section id="registrar-llanta">
+  <h2>Registrar llanta</h2>
+  <form method="post" action="/llantas">
+    <div class="row">
+      <input name="sku" placeholder="SKU" required>
+      <input name="marca" placeholder="Marca" required>
+      <input name="modelo" placeholder="Modelo" required>
+      <input name="medida" placeholder="Medida" required>
+      <input name="precio" placeholder="Precio (ej. 120 o 120.50)" required>
+    </div>
+    <button type="submit">Crear llanta</button>
+  </form>
+</section>
+
+<section id="ajustar-inventario">
+  <h2>Ajustar inventario</h2>
+  <form method="post" action="/inventario/ajustar">
+    <div class="row">
+      <input name="llanta_id" placeholder="ID llanta" required>
+      <input name="delta" placeholder="Delta (ej. +5 o -3)" required>
+      <input name="umbral" placeholder="Nuevo umbral (opcional)">
+    </div>
+    <button type="submit">Aplicar</button>
+  </form>
+</section>
+
+<section id="actualizar-precio">
+  <h2>Actualizar precio</h2>
+  <form method="post" action="/llantas/precio">
+    <div class="row">
+      <input name="llanta_id" placeholder="ID llanta" required>
+      <input name="nuevo_precio" placeholder="Nuevo precio (ej. 125 o 125.50)" required>
+    </div>
+    <button type="submit">Actualizar</button>
+  </form>
+</section>
+
+<section id="clientes">
+  <h2>Registrar cliente</h2>
+  <form method="post" action="/clientes">
+    <div class="row">
+      <input name="nombre" placeholder="Nombre" required>
+      <input name="documento" placeholder="Documento" required>
+      <input name="telefono" placeholder="Teléfono">
+      <input name="email" placeholder="Email">
+    </div>
+    <button type="submit">Crear cliente</button>
+  </form>
+
+  <h3>Listado de clientes</h3>
+  {% if clientes %}
+    <ul>
+      {% for c in clientes %}
+        <li>[{{ c.id }}] {{ c.nombre }} ({{ c.documento }}) {% if c.telefono %}- {{ c.telefono }}{% endif %} {% if c.email %}- {{ c.email }}{% endif %}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="muted">Sin clientes.</p>
+  {% endif %}
+</section>
+
+<section id="asesores">
+  <h2>Registrar asesor</h2>
+  <form method="post" action="/asesores">
+    <div class="row">
+      <input name="nombre" placeholder="Nombre" required>
+      <input name="documento" placeholder="Documento" required>
+      <input name="email" placeholder="Email">
+    </div>
+    <button type="submit">Crear asesor</button>
+  </form>
+
+  <h3>Listado de asesores</h3>
+  {% if asesores %}
+    <ul>
+      {% for a in asesores %}
+        <li>[{{ a.id }}] {{ a.nombre }} ({{ a.documento }}) {% if a.email %}- {{ a.email }}{% endif %}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="muted">Sin asesores.</p>
+  {% endif %}
+</section>
+
+<section id="venta">
+  <h2>Registrar venta</h2>
+  <form method="post" action="/ventas">
+    <div class="row">
+      <select name="cliente_id" required>
+        <option value="">-- Cliente --</option>
+        {% for c in clientes %}
+          <option value="{{ c.id }}">[{{ c.id }}] {{ c.nombre }}</option>
+        {% endfor %}
+      </select>
+
+      <select name="asesor_id" required>
+        <option value="">-- Asesor --</option>
+        {% for a in asesores %}
+          <option value="{{ a.id }}">[{{ a.id }}] {{ a.nombre }}</option>
+        {% endfor %}
+      </select>
+
+      <input name="items_text" placeholder="Items (ej. 1x2,3x1)" required>
+    </div>
+    <p class="muted">Formato: <code>IDxCANTIDAD</code> separados por coma. Ej.: <code>1x2,3x1</code></p>
+    <button type="submit">Crear venta</button>
+  </form>
+</section>
+
+<section id="ventas">
+  <h2>Ventas registradas</h2>
+  {% if ventas %}
+    <table>
+      <thead>
+        <tr><th>#</th><th>Cliente</th><th>Asesor</th><th>Fecha</th><th>Total</th><th>Detalles</th></tr>
+      </thead>
+      <tbody>
+      {% for v, dets in ventas %}
+        <tr>
+          <td>{{ v.id }}</td>
+          <td>{{ v.cliente_id }}</td>
+          <td>{{ v.asesor_id }}</td>
+          <td>{{ v.fecha }}</td>
+          <td>{{ v.total }}</td>
+          <td>
+            <ul>
+              {% for d in dets %}
+                <li>{{ d.cantidad }} x LlantaID={{ d.llanta_id }} @ {{ d.precio_unitario }} = {{ d.subtotal }}</li>
+              {% endfor %}
+            </ul>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="muted">No hay ventas registradas.</p>
+  {% endif %}
+</section>
+
+<section id="devoluciones">
+  <h2>Registrar devolución</h2>
+  <form method="post" action="/devoluciones">
+    <div class="row">
+      <input name="venta_id" placeholder="ID de venta" required>
+      <input name="items_text" placeholder="Items devueltos (ej. 1x1)" required>
+    </div>
+    <textarea name="motivo" placeholder="Motivo de la devolución" required></textarea>
+    <p class="muted">Reglas: no puedes devolver más de lo vendido por llanta.</p>
+    <button type="submit">Registrar devolución</button>
+  </form>
+
+  <h3>Devoluciones registradas</h3>
+  {% if devoluciones %}
+    <table>
+      <thead>
+        <tr><th>#</th><th>Venta #</th><th>Fecha</th><th>Motivo</th><th>Detalles</th></tr>
+      </thead>
+      <tbody>
+      {% for d in devoluciones %}
+        <tr>
+          <td>{{ d.id }}</td>
+          <td>{{ d.venta_id }}</td>
+          <td>{{ d.fecha }}</td>
+          <td>{{ d.motivo }}</td>
+          <td>
+            <ul>
+              {% for it in d.detalles %}
+                <li>{{ it.cantidad }} x LlantaID={{ it.llanta_id }} @ {{ it.precio_unitario }} = {{ it.subtotal }}</li>
+              {% endfor %}
+            </ul>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="muted">No hay devoluciones registradas.</p>
+  {% endif %}
+</section>
+
+{% endblock %}

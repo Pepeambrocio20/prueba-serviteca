@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+
+<h3>Ventas</h3>
+{% if ventas %}
+  <table>
+    <thead>
+      <tr>
+        <th>#</th><th>ClienteID</th><th>AsesorID</th><th>Fecha</th><th>Total</th><th>Detalles</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for v, dets in ventas %}
+      <tr>
+        <td>{{ v.id }}</td>
+        <td>{{ v.cliente_id }}</td>
+        <td>{{ v.asesor_id }}</td>
+        <td>{{ v.fecha }}</td>
+        <td>{{ v.total }}</td>
+        <td>
+          <ul>
+            {% for d in dets %}
+              <li>{{ d.cantidad }} x LlantaID={{ d.llanta_id }} @ {{ d.precio_unitario }} = {{ d.subtotal }}</li>
+            {% endfor %}
+          </ul>
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p class="muted">No hay ventas registradas.</p>
+{% endif %}
+
+<p><a href="/inventario">← Volver a Inventario</a></p>
+
+{% endblock %}

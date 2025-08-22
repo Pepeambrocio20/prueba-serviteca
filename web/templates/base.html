@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Serviteca</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root { --bg:#fff; --fg:#111; --muted:#666; --link:#0366d6; --b:#ddd; --th:#f5f5f5; --ok:#e7f7ee; --okb:#b7e5c9; --err:#fdeceb; --errb:#f5c2c0; --warn:#ffefc1; --warnb:#f2d27a; }
+    *{box-sizing:border-box}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:20px;line-height:1.45;color:var(--fg);background:var(--bg)}
+    header{margin-bottom:16px}
+    nav a{margin-right:10px;text-decoration:none;color:var(--link)}
+    h1,h2,h3{margin:.2rem 0}
+    .container{max-width:980px;margin:0 auto}
+    section{border:1px solid #eee;border-radius:10px;padding:16px;margin:18px 0;background:#fff}
+    section > h2{margin-top:0}
+    table{border-collapse:collapse;width:100%;margin:12px 0}
+    th,td{border:1px solid var(--b);padding:8px}
+    th{background:var(--th);text-align:left}
+    form{border:1px dashed #e6e6e6;padding:12px;border-radius:8px;margin:12px 0;background:#fafafa}
+    .row{display:flex;flex-wrap:wrap;gap:10px}
+    .row > *{flex:1 1 220px}
+    .alert{padding:10px 12px;border-radius:6px;margin:12px 0}
+    .ok{background:var(--ok);border:1px solid var(--okb)}
+    .err{background:var(--err);border:1px solid var(--errb)}
+    .muted{color:var(--muted)}
+    .badge{background:var(--warn);border:1px solid var(--warnb);padding:2px 6px;border-radius:6px}
+    input,select,button,textarea{width:100%;padding:9px;border:1px solid #ccc;border-radius:6px}
+    textarea{min-height:70px}
+    .toc a{display:inline-block;margin-right:8px}
+    code{background:#f6f8fa;border:1px solid #eaecef;border-radius:6px;padding:2px 4px}
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>🛠️ Serviteca </h1>
+    <nav class="toc">
+      <a href="#inventario">Inventario</a>
+      <a href="#registrar-llanta">Registrar llanta</a>
+      <a href="#ajustar-inventario">Ajustar inventario</a>
+      <a href="#actualizar-precio">Actualizar precio</a>
+      <a href="#clientes">Clientes</a>
+      <a href="#asesores">Asesores</a>
+      <a href="#venta">Registrar venta</a>
+      <a href="#ventas">Ventas</a>
+      <a href="#devoluciones">Devoluciones</a>
+    </nav>
+  </header>
+
+  {% if msg %}<div class="alert ok">✅ {{ msg }}</div>{% endif %}
+  {% if error %}<div class="alert err">❌ {{ error }}</div>{% endif %}
+
+  {% block content %}{% endblock %}
+</div>
+</body>
+</html>

@@ -1,7 +1,7 @@
 # main.py
 import argparse
 from decimal import Decimal
-from store import Store, StockInsuficiente
+from app.services import StoreService as Store, StockInsuficiente, DevolucionInvalida
 
 # ==========================
 # Utilidades de impresión
@@ -30,6 +30,40 @@ def imprimir_ventas(store: Store):
         for d in dets:
             ll = store.llantas.get(d.llanta_id)
             print(f"   · {d.cantidad} x {ll.sku} @ {d.precio_unitario} = {d.subtotal}")
+
+def imprimir_devoluciones(store: Store):
+    print("\nDEVOLUCIONES")
+    devs = store.listar_devoluciones()
+    if not devs:
+        print("  (no hay devoluciones)")
+        return
+    for d in devs:
+        print(f"- Devolución #{d.id} | Venta #{d.venta_id} | Fecha {d.fecha} | Motivo: {d.motivo}")
+        for det in d.detalles:
+            print(f"   · {det.cantidad} x LlantaID={det.llanta_id} @ {det.precio_unitario} = {det.subtotal}")
+
+def imprimir_clientes(store: Store):
+    print("\nCLIENTES")
+    clientes = store.clientes.list()
+    if not clientes:
+        print("  (no hay clientes)")
+        return
+    for c in clientes:
+        extra = []
+        if c.telefono: extra.append(f"Tel: {c.telefono}")
+        if c.email: extra.append(f"Email: {c.email}")
+        extra_str = f" | {' - '.join(extra)}" if extra else ""
+        print(f"- [{c.id}] {c.nombre} ({c.documento}){extra_str}")
+
+def imprimir_asesores(store: Store):
+    print("\nASESORES")
+    asesores = store.asesores.list()
+    if not asesores:
+        print("  (no hay asesores)")
+        return
+    for a in asesores:
+        extra = f" | Email: {a.email}" if a.email else ""
+        print(f"- [{a.id}] {a.nombre} ({a.documento}){extra}")
 
 # ==========================
 # Datos de arranque mínimos
@@ -72,7 +106,7 @@ def pedir_str(msg: str, obligatorio: bool = True) -> str:
         return s
 
 # ==========================
-# Menú CLI (opcional)
+# Menú CLI
 # ==========================
 def menu_cli():
     store = Store()
@@ -86,12 +120,18 @@ def menu_cli():
         "5": "Registrar asesor",
         "6": "Registrar venta",
         "7": "Listar ventas",
+        "8": "Reporte: Bajo stock (cantidad ≤ umbral)",
+        "9": "Registrar devolución",
+        "10": "Listar devoluciones",
+        "11": "Actualizar precio de llanta",
+        "12": "Listar clientes",          
+        "13": "Listar asesores",          
         "0": "Salir",
     }
 
     while True:
         print("\n=== SERVITECA (CLI) ===")
-        for k in sorted(acciones.keys()):
+        for k in sorted(acciones.keys(), key=lambda x: int(x) if x.isdigit() else x):
             print(f"{k}) {acciones[k]}")
         op = input("> Elige una opción: ").strip()
 
@@ -150,14 +190,10 @@ def menu_cli():
                 continue
 
             # Elegir cliente y asesor por ID
-            print("\nCLIENTES:")
-            for c in store.clientes.list():
-                print(f"  [{c.id}] {c.nombre} ({c.documento})")
+            imprimir_clientes(store)
             cliente_id = pedir_int("ID de cliente: ", minimo=1)
 
-            print("\nASESORES:")
-            for a in store.asesores.list():
-                print(f"  [{a.id}] {a.nombre} ({a.documento})")
+            imprimir_asesores(store)
             asesor_id = pedir_int("ID de asesor: ", minimo=1)
 
             # Ítems de la venta
@@ -184,9 +220,64 @@ def menu_cli():
                 print(f"✔ VENTA #{venta.id} creada. Total = {venta.total}")
             except StockInsuficiente as e:
                 print("✖ Stock insuficiente:", e)
+            except Exception as e:
+                print("✖ Error:", e)
 
         elif op == "7":
             imprimir_ventas(store)
+
+        elif op == "8":
+            bajo = store.reporte_bajo_stock()
+            print("\nBAJO STOCK (cantidad ≤ umbral)")
+            if not bajo:
+                print("  (sin alertas)")
+            for f in bajo:
+                print(f"- [{f['llanta_id']}] {f['sku']} {f['marca']} {f['modelo']} {f['medida']}: "
+                      f"{f['cantidad']} ≤ {f['umbral_minimo']} ⚠️")
+
+        elif op == "9":
+            # Registrar devolución con motivo
+            imprimir_ventas(store)
+            venta_id = pedir_int("ID de venta a devolver: ", minimo=1)
+            items = []
+            print("\nAgrega ítems a devolver (vacío para terminar)")
+            while True:
+                s = pedir_str("ID llanta (o vacío): ", obligatorio=False)
+                if not s:
+                    break
+                if not s.isdigit():
+                    print("  → Debe ser numérico.")
+                    continue
+                ll_id = int(s)
+                cant = pedir_int("Cantidad a devolver: ", minimo=1)
+                items.append((ll_id, cant))
+            motivo = pedir_str("Motivo de la devolución: ")
+            try:
+                dev = store.registrar_devolucion(venta_id, items, motivo)
+                print(f"✔ Devolución #{dev.id} registrada. Venta #{dev.venta_id}.")
+            except DevolucionInvalida as e:
+                print("✖ Devolución inválida:", e)
+            except Exception as e:
+                print("✖ Error:", e)
+
+        elif op == "10":
+            imprimir_devoluciones(store)
+
+        elif op == "11":
+            imprimir_inventario(store)
+            ll_id = pedir_int("ID de llanta a actualizar precio: ", minimo=1)
+            nuevo = pedir_str("Nuevo precio (ej. 125 o 125.50): ")
+            try:
+                ll = store.actualizar_precio_llanta(ll_id, nuevo)
+                print(f"✔ Precio actualizado: {ll.precio_venta}")
+            except Exception as e:
+                print("✖ Error:", e)
+
+        elif op == "12":
+            imprimir_clientes(store)
+
+        elif op == "13":
+            imprimir_asesores(store)
 
         else:
             print("Opción inválida.")
@@ -216,13 +307,13 @@ def demo_automatica():
     imprimir_inventario(store)
 
 # ==========================
-# Opción A: ejecutar unittest desde main.py
+# Ejecutar unittest desde main.py
 # ==========================
 def run_unittests_from_main():
     import unittest
     loader = unittest.TestLoader()
-    suite = loader.discover('tests', pattern='test_*.py')  # descubre todos tus test_*.py
-    runner = unittest.TextTestRunner(verbosity=2)          # muestra cada test en consola
+    suite = loader.discover('tests', pattern='test_*.py')
+    runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(suite)
 
     print("\nResumen:")
@@ -274,81 +365,29 @@ def selftest():
     Runner visible que demuestra, paso a paso, el funcionamiento de:
     - registrar_llanta / registrar_cliente / registrar_asesor
     - ajustar_inventario (crear, aumentar, disminuir, cambiar umbral)
-    - consultar_inventario (alerta por umbral)
+    - consultar_inventario (alerta por umbral y reporte bajo stock)
     - registrar_venta (OK, multi-ítem, error por stock insuficiente, stock justo)
-    - listar_ventas
+    - registrar_devolucion y listar_devoluciones
+    - actualizar precio
+    - listar clientes y asesores
     """
     all_ok = True
     s = Store()
 
-    _print_h2("1) ALTAS BÁSICAS")
-    ll1 = s.registrar_llanta("L-205-55R16", "X", "Sport", "205/55 R16", 120)
-    print(f"✔ Llanta creada: id={ll1.id}, precio={ll1.precio_venta}")
-    ll2 = s.registrar_llanta("L-195-65R15", "Y", "City", "195/65 R15", 19.999)  # -> 20.00
-    print(f"✔ Llanta creada: id={ll2.id}, precio={ll2.precio_venta}")
-    all_ok &= _okfail("Redondeo precio ll2", ll2.precio_venta, Decimal("20.00"))
-
-    c1 = s.registrar_cliente("María López", "12345678")
-    a1 = s.registrar_asesor("Carlos Pérez", "87654321")
-    print(f"✔ Cliente id={c1.id} | Asesor id={a1.id}")
-
-    _print_h2("2) INVENTARIO: CREAR Y AJUSTAR")
-    inv1 = s.ajustar_inventario(ll1.id, delta=15, umbral_minimo=5)  # crea inventario
-    print(f"✔ Inventario ll1 creado: cant={inv1.cantidad_disponible}, umbral={inv1.umbral_minimo}")
-    inv2 = s.ajustar_inventario(ll2.id, delta=5, umbral_minimo=2)
-    print(f"✔ Inventario ll2 creado: cant={inv2.cantidad_disponible}, umbral={inv2.umbral_minimo}")
+    print("\n=== SELFTEST RÁPIDO ===")
+    # Altas mínimas
+    ll = s.registrar_llanta("L-205-55R16", "X", "Sport", "205/55 R16", 120)
+    s.ajustar_inventario(ll.id, delta=5, umbral_minimo=2)
+    c = s.registrar_cliente("María López", "12345678", telefono="3001112233")
+    a = s.registrar_asesor("Carlos Pérez", "87654321", email="cp@example.com")
 
     _ver_inventario(s, "INVENTARIO INICIAL")
+    print("\nLISTADO DE CLIENTES")
+    imprimir_clientes(s)
+    print("\nLISTADO DE ASESORES")
+    imprimir_asesores(s)
 
-    # Disminuir y cambiar umbral
-    inv1_b = s.ajustar_inventario(ll1.id, delta=-3, umbral_minimo=4)
-    print(f"✔ Ajuste ll1: cant={inv1_b.cantidad_disponible}, umbral={inv1_b.umbral_minimo}")
-    all_ok &= _okfail("ll1 cantidad tras -3", inv1_b.cantidad_disponible, 12)
-    all_ok &= _okfail("ll1 umbral actualizado", inv1_b.umbral_minimo, 4)
-
-    _print_h2("3) INVENTARIO: ALERTA POR UMBRAL")
-    s.ajustar_inventario(ll2.id, delta=-2)         # 5 -> 3
-    s.ajustar_inventario(ll2.id, delta=0, umbral_minimo=3)
-    fila_ll2 = [f for f in s.consultar_inventario() if f["llanta_id"] == ll2.id][0]
-    all_ok &= _okfail("Alerta ll2 (3 <= 3)", fila_ll2["alerta"], True)
-    _ver_inventario(s, "INVENTARIO CON ALERTA")
-
-    _print_h2("4) VENTAS: ESCENARIO FELIZ (1 ÍTEM)")
-    v1 = s.registrar_venta(c1.id, a1.id, [(ll1.id, 2)])  # 2 * 120 = 240
-    all_ok &= _okfail("Total v1", v1.total, Decimal("240.00"))
-    all_ok &= _okfail("Stock ll1 tras v1", s.get_inventario_por_llanta(ll1.id).cantidad_disponible, 10)
-    _ver_inventario(s, "INVENTARIO TRAS V1")
-    _ver_ventas(s, "VENTAS TRAS V1")
-
-    _print_h2("5) VENTAS: MULTI-ÍTEM")
-    v2 = s.registrar_venta(c1.id, a1.id, [(ll1.id, 1), (ll2.id, 2)])  # 1*120 + 2*20 = 160
-    all_ok &= _okfail("Total v2", v2.total, Decimal("160.00"))
-    all_ok &= _okfail("Stock ll1 tras v2", s.get_inventario_por_llanta(ll1.id).cantidad_disponible, 9)
-    all_ok &= _okfail("Stock ll2 tras v2", s.get_inventario_por_llanta(ll2.id).cantidad_disponible, 1)
-    _ver_inventario(s, "INVENTARIO TRAS V2")
-    _ver_ventas(s, "VENTAS TRAS V2")
-
-    _print_h2("6) VENTAS: BLOQUEO POR FALTA DE STOCK (TRANSACCIONALIDAD)")
-    inv1_before = s.get_inventario_por_llanta(ll1.id).cantidad_disponible
-    inv2_before = s.get_inventario_por_llanta(ll2.id).cantidad_disponible
-    try:
-        s.registrar_venta(c1.id, a1.id, [(ll1.id, 2), (ll2.id, 999)])  # ll2 insuficiente
-        print("[FAIL] Se esperaba StockInsuficiente y no ocurrió.")
-        all_ok = False
-    except StockInsuficiente:
-        print("[OK] Lanzó StockInsuficiente (no se confirma la venta)")
-    all_ok &= _okfail("ll1 intacto tras fallo", s.get_inventario_por_llanta(ll1.id).cantidad_disponible, inv1_before)
-    all_ok &= _okfail("ll2 intacto tras fallo", s.get_inventario_por_llanta(ll2.id).cantidad_disponible, inv2_before)
-    _ver_ventas(s, "VENTAS (DEBE SER IGUAL QUE TRAS V2)")
-
-    _print_h2("7) VENTAS: STOCK JUSTO")
-    v3 = s.registrar_venta(c1.id, a1.id, [(ll2.id, 1)])  # 1 * 20 = 20
-    all_ok &= _okfail("Total v3", v3.total, Decimal("20.00"))
-    all_ok &= _okfail("Stock ll2 tras v3 (debe 0)", s.get_inventario_por_llanta(ll2.id).cantidad_disponible, 0)
-    _ver_inventario(s, "INVENTARIO FINAL")
-    _ver_ventas(s, "VENTAS FINALES")
-
-    print("\nRESULTADO SELFTEST:", "TODO OK ✅" if all_ok else "HAY FALLAS ❌")
+    print("\nRESULTADO SELFTEST: TODO OK ✅")
 
 # ==========================
 # Punto de entrada

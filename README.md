@@ -47,6 +47,12 @@ se vera un menu con todas las funciones como se muestra a continuacion
 5) Registrar asesor
 6) Registrar venta
 7) Listar ventas
+8) Reporte: Bajo stock (cantidad ≤ umbral)
+9) Registrar devolución
+10) Listar devoluciones
+11) Actualizar precio de llanta
+12) Listar clientes
+13) Listar asesores
 
 ## tests automaticos unitarios
 python main.py --run-tests
@@ -55,3 +61,8 @@ python main.py --run-tests
 ## Selftests
 pruebas automaticas y visibles para cada una de las funciones
 python main.py --selftest
+
+## Habilitar servidor para vista desde pagina web
+uvicorn web.server:app --reload
+## para ver la vista desde la pagina web se accede a localhost en el puerto 8000 /inventario
+http://localhost:8000/inventario
